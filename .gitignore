@@ -1,0 +1,5 @@
+__pycache__/
+*.xlsx
+*.html
+.DS_Store
+.env
