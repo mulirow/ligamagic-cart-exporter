@@ -1,4 +1,5 @@
 import sys
+import re
 from typing import Dict, Optional, Union
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -64,6 +65,17 @@ def parse_price(price_str: str) -> float:
         return 0.0
 
 
+def extract_content_in_parentheses(text: str) -> str:
+    """
+    Extracts content between parenthesis in a given string.
+    Ex: 'Near Mint (NM)' -> 'NM'
+    """
+    match = re.search(r"\((.*?)\)", text)
+    if match:
+        return match.group(1)
+    return text
+
+
 def extract_item_data(
     item_soup: BeautifulSoup, selectors: Dict[str, str]
 ) -> Optional[Dict[str, Union[str, int, float]]]:
@@ -109,7 +121,7 @@ def extract_item_data(
                 idioma = text
                 matched = True
             elif any(kw in text for kw in KEYWORDS["condicao"]):
-                condicao = text
+                condicao = extract_content_in_parentheses(text)
                 matched = True
             elif any(kw in text for kw in KEYWORDS["extras"]):
                 extras_list.append(text)
