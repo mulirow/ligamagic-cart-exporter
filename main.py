@@ -113,9 +113,9 @@ def extract_item_data(
             "Idioma": idioma,
             "Condição": condicao,
             "Extras": extras,
+            "Link": link,
             "Quantidade": quantidade,
             "Preço Unitário": preco,
-            "Link": link,
         }
 
     except Exception as e:
