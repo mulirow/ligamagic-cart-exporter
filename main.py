@@ -45,9 +45,28 @@ def clean_text(text: Optional[str]) -> str:
     return " ".join(text.split())
 
 
+def parse_price(price_str: str) -> float:
+    """
+    Converts a price string (ex: 'R$ 1.250,50') into a float (1250.50).
+    """
+    if not price_str:
+        return 0.0
+
+    cleaned = price_str.replace("R$", "").replace("€", "").replace("$", "").strip()
+
+    cleaned = cleaned.replace(".", "")
+
+    cleaned = cleaned.replace(",", ".")
+
+    try:
+        return float(cleaned)
+    except ValueError:
+        return 0.0
+
+
 def extract_item_data(
     item_soup: BeautifulSoup, selectors: Dict[str, str]
-) -> Optional[Dict[str, Union[str, int]]]:
+) -> Optional[Dict[str, Union[str, int, float]]]:
     """
     Extracts data from a single HTML item container.
     Returns a dictionary with the data or None if extraction fails.
@@ -67,7 +86,8 @@ def extract_item_data(
         link = link_tag["href"]
         nome_pt = clean_text(name_pt_tag.text)
         nome_en = clean_text(name_en_tag.text) if name_en_tag else ""
-        preco = clean_text(price_tag.text) if price_tag else "0"
+        price_text = clean_text(price_tag.text) if price_tag else "0"
+        preco = parse_price(price_text)
         quantidade = int(qty_tag["value"])
 
         # Initialize classification variables
@@ -158,6 +178,8 @@ def process_html_to_excel(input_file: str, output_file: str, selectors: Dict[str
     print("3. Creating Excel spreadsheet...")
     try:
         df = pd.DataFrame(extracted_items)
+        df["Preço Unitário"] = df["Preço Unitário"].round(2)
+
         df.to_excel(output_file, index=False)
         print(f"\nDone! Data successfully saved to '{output_file}'")
     except Exception as e:
