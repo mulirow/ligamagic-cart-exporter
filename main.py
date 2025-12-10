@@ -89,14 +89,12 @@ def parse_price(price_str: str) -> float:
     if not price_str:
         return 0.0
 
-    cleaned = price_str.replace("R$", "").replace("€", "").replace("$", "").strip()
+    clean_nums = re.sub(r"[^\d,]", "", price_str)
 
-    cleaned = cleaned.replace(".", "")
-
-    cleaned = cleaned.replace(",", ".")
+    clean_nums = clean_nums.replace(",", ".")
 
     try:
-        return float(cleaned)
+        return float(clean_nums)
     except ValueError:
         return 0.0
 
