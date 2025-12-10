@@ -224,7 +224,10 @@ def process_html_to_excel(input_file: str, output_file: str, selectors: Dict[str
     print("3. Creating Excel spreadsheet...")
     try:
         df = pd.DataFrame(extracted_items)
-        df["Preço Unitário"] = df["Preço Unitário"].round(2)
+        if "Preço Unitário" in df.columns:
+            df["Preço Unitário"] = df["Preço Unitário"].round(2)
+        if "Preço Total" in df.columns:
+            df["Preço Total"] = df["Preço Total"].round(2)
 
         df.to_excel(output_file, index=False)
         print(f"\nDone! Data successfully saved to '{output_file}'")
