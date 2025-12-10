@@ -1,6 +1,6 @@
 import sys
 import re
-from typing import Dict, Optional, Union
+from typing import Dict, List, Optional, Union, Any
 from dataclasses import dataclass
 from pathlib import Path
 import pandas as pd
@@ -111,6 +111,45 @@ def extract_content_in_parentheses(text: str) -> str:
     return text
 
 
+def classify_attributes(description_tags: List[Any]) -> Dict[str, str]:
+    """
+    Logic to classify descriptions into Language, Condition, etc.
+    Separated from the main extraction loop for clarity.
+    """
+    results = {"idioma": "N/A", "condicao": "N/A", "extras": [], "expansao": "N/A"}
+
+    remaining_descriptions = []
+
+    for desc in description_tags:
+        text = clean_text(desc.text)
+        matched = False
+
+        # Check against keywords
+        if any(kw in text for kw in KEYWORDS["idioma"]):
+            results["idioma"] = text
+            matched = True
+        elif any(kw in text for kw in KEYWORDS["condicao"]):
+            results["condicao"] = extract_content_in_parentheses(text)
+            matched = True
+        elif any(kw in text for kw in KEYWORDS["extras"]):
+            results["extras"].append(text)
+            matched = True
+
+        if not matched:
+            remaining_descriptions.append(text)
+
+    # Heuristic: The expansion is usually the remaining unmatched description
+    if remaining_descriptions:
+        results["expansao"] = remaining_descriptions[0]
+
+    # Join extras if multiple found (e.g., "Foil, Promo")
+    # Store as string in the final dict
+    extras_str = ", ".join(results["extras"]) if results["extras"] else "N/A"
+    results["extras"] = extras_str
+
+    return results
+
+
 def extract_item_data(
     item_soup: BeautifulSoup, selectors: Dict[str, str]
 ) -> Optional[CardItem]:
@@ -125,61 +164,31 @@ def extract_item_data(
         name_en_tag = item_soup.select_one(selectors["nome_en"])
         price_tag = item_soup.select_one(selectors["preco"])
         qty_tag = item_soup.select_one(selectors["quantidade"])
+        description_tags = item_soup.select(selectors["descriptions"])
 
         # Safety check for essential elements
         if not all([link_tag, name_pt_tag, qty_tag]):
             return None
 
+        # Data processing
+        attrs = classify_attributes(description_tags)
+
         link = link_tag["href"]
         nome_pt = clean_text(name_pt_tag.text)
         nome_en = clean_text(name_en_tag.text) if name_en_tag else ""
         price_text = clean_text(price_tag.text) if price_tag else "0"
+
         preco = parse_price(price_text)
         quantidade = int(qty_tag["value"])
-
-        # Initialize classification variables
-        expansao = "N/A"
-        idioma = "N/A"
-        condicao = "N/A"
-        extras_list = []
-
-        # Logic to classify descriptions
-        description_tags = item_soup.select(selectors["descriptions"])
-        remaining_descriptions = []
-
-        for desc in description_tags:
-            text = clean_text(desc.text)
-            matched = False
-
-            # Check against keywords
-            if any(kw in text for kw in KEYWORDS["idioma"]):
-                idioma = text
-                matched = True
-            elif any(kw in text for kw in KEYWORDS["condicao"]):
-                condicao = extract_content_in_parentheses(text)
-                matched = True
-            elif any(kw in text for kw in KEYWORDS["extras"]):
-                extras_list.append(text)
-                matched = True
-
-            if not matched:
-                remaining_descriptions.append(text)
-
-        # Join extras if multiple found (e.g., "Foil, Promo")
-        extras = ", ".join(extras_list) if extras_list else "N/A"
-
-        # Heuristic: The expansion is usually the remaining unmatched description
-        if remaining_descriptions:
-            expansao = remaining_descriptions[0]
 
         # Return Data Class
         return CardItem(
             nome_pt=nome_pt,
             nome_en=nome_en,
-            expansao=expansao,
-            idioma=idioma,
-            condicao=condicao,
-            extras=extras,
+            expansao=attrs["expansao"],
+            idioma=attrs["idioma"],
+            condicao=attrs["condicao"],
+            extras=attrs["extras"],
             link=link,
             quantidade=quantidade,
             preco_unitario=preco,
