@@ -1,6 +1,7 @@
 import sys
 import re
 from typing import Dict, Optional, Union
+from dataclasses import dataclass
 import pandas as pd
 from bs4 import BeautifulSoup
 
@@ -37,6 +38,41 @@ KEYWORDS = {
     "condicao": ["Aberto", "Lacrado", "Novo", "Usado", "Nova", "Usada", "Danificada"],
     "extras": ["Foil", "Promo", "Pre Release"],
 }
+
+
+@dataclass
+class CardItem:
+    """Represents an extracted cart item."""
+
+    nome_pt: str
+    nome_en: str
+    expansao: str
+    idioma: str
+    condicao: str
+    extras: str
+    link: str
+    quantidade: int
+    preco_unitario: float
+
+    @property
+    def preco_total(self) -> float:
+        """Calculates total price automatically."""
+        return self.quantidade * self.preco_unitario
+
+    def to_dict(self) -> Dict[str, Union[str, int, float]]:
+        """Converts to dictionary with keys for the Excel header."""
+        return {
+            "Nome (Português)": self.nome_pt,
+            "Nome (Inglês)": self.nome_en,
+            "Expansão": self.expansao,
+            "Idioma": self.idioma,
+            "Condição": self.condicao,
+            "Extras": self.extras,
+            "Quantidade": self.quantidade,
+            "Preço Unitário": self.preco_unitario,
+            "Preço Total": self.preco_total,
+            "Link": self.link,
+        }
 
 
 def clean_text(text: Optional[str]) -> str:
@@ -78,10 +114,10 @@ def extract_content_in_parentheses(text: str) -> str:
 
 def extract_item_data(
     item_soup: BeautifulSoup, selectors: Dict[str, str]
-) -> Optional[Dict[str, Union[str, int, float]]]:
+) -> Optional[CardItem]:
     """
     Extracts data from a single HTML item container.
-    Returns a dictionary with the data or None if extraction fails.
+    Returns a CardItem object or None if extraction fails.
     """
     try:
         # Basic extraction
@@ -137,18 +173,18 @@ def extract_item_data(
         if remaining_descriptions:
             expansao = remaining_descriptions[0]
 
-        # Return dict with keys for the Excel header
-        return {
-            "Nome (Português)": nome_pt,
-            "Nome (Inglês)": nome_en,
-            "Expansão": expansao,
-            "Idioma": idioma,
-            "Condição": condicao,
-            "Extras": extras,
-            "Link": link,
-            "Quantidade": quantidade,
-            "Preço Unitário": preco,
-        }
+        # Return Data Class
+        return CardItem(
+            nome_pt=nome_pt,
+            nome_en=nome_en,
+            expansao=expansao,
+            idioma=idioma,
+            condicao=condicao,
+            extras=extras,
+            link=link,
+            quantidade=quantidade,
+            preco_unitario=preco,
+        )
 
     except Exception as e:
         print(f"   - Warning: Failed to parse specific item. Details: {e}")
@@ -179,9 +215,9 @@ def process_html_to_excel(input_file: str, output_file: str, selectors: Dict[str
 
     extracted_items = []
     for item_soup in items_html:
-        data = extract_item_data(item_soup, selectors)
-        if data:
-            extracted_items.append(data)
+        item_obj = extract_item_data(item_soup, selectors)
+        if item_obj:
+            extracted_items.append(item_obj.to_dict())
 
     if not extracted_items:
         print("\nERROR: No data could be extracted. Please check selectors.")
