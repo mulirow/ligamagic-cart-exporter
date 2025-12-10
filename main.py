@@ -2,12 +2,13 @@ import sys
 import re
 from typing import Dict, Optional, Union
 from dataclasses import dataclass
+from pathlib import Path
 import pandas as pd
 from bs4 import BeautifulSoup
 
 # --- CONFIGURATION ---
-HTML_INPUT_FILE = "carrinho_in.html"
-OUTPUT_EXCEL_FILE = "carrinho_out.xlsx"
+INPUT_FILE = Path("carrinho_in.html")
+OUTPUT_FILE = Path("carrinho_out.xlsx")
 
 # CSS Selectors
 SELECTORS = {
@@ -189,16 +190,17 @@ def extract_item_data(
         return None
 
 
-def process_html_to_excel(input_file: str, output_file: str, selectors: Dict[str, str]):
+def process_html_to_excel(
+    input_file: Path, output_file: Path, selectors: Dict[str, str]
+):
     """Main function to read HTML, parse data, and save to Excel."""
 
     print(f"1. Reading local HTML file: '{input_file}'...")
-    try:
-        with open(input_file, "r", encoding="utf-8") as f:
-            html_content = f.read()
-    except FileNotFoundError:
+    if not input_file.exists():
         print(f"\nERROR: File '{input_file}' not found.")
         sys.exit(1)
+
+    html_content = input_file.read_text(encoding="utf-8")
 
     soup = BeautifulSoup(html_content, "html.parser")
     items_html = soup.select(selectors["item_container"])
@@ -210,7 +212,6 @@ def process_html_to_excel(input_file: str, output_file: str, selectors: Dict[str
         return
 
     print(f"2. Found {len(items_html)} items. Extracting information...")
-
     extracted_items = []
     for item_soup in items_html:
         item_obj = extract_item_data(item_soup, selectors)
@@ -230,10 +231,10 @@ def process_html_to_excel(input_file: str, output_file: str, selectors: Dict[str
             df["Preço Total"] = df["Preço Total"].round(2)
 
         df.to_excel(output_file, index=False)
-        print(f"\nDone! Data successfully saved to '{output_file}'")
+        print(f"\nDone! Data successfully saved to '{output_file.absolute()}'")
     except Exception as e:
         print(f"\nERROR: Failed to save Excel file. Details: {e}")
 
 
 if __name__ == "__main__":
-    process_html_to_excel(HTML_INPUT_FILE, OUTPUT_EXCEL_FILE, SELECTORS)
+    process_html_to_excel(INPUT_FILE, OUTPUT_FILE, SELECTORS)
